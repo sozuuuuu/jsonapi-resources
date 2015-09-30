@@ -86,6 +86,7 @@ module JSONAPI
     end
 
     def setup_request
+      process_default_included
       @request = JSONAPI::Request.new(params, context: context, key_formatter: key_formatter)
 
       render_errors(@request.errors) unless @request.errors.empty?
@@ -185,6 +186,19 @@ module JSONAPI
 
     def add_error_callbacks(callbacks)
       @request.server_error_callbacks = callbacks || []
+    end
+
+    def process_default_included
+      resource_name = params[:controller].split('/').map(&:classify).tap { |names|
+        names[-1] += 'Resource'
+      }.join('::')
+      resource = Object.const_get(resource_name)
+
+      if resource.respond_to?(:default_included)
+        splitted = (params[:include] || '').split(',')
+        splitted.concat(resource.default_included(params[:action])).uniq!
+        params[:include] = splitted.join(',')
+      end
     end
 
     # Pass in a methods or a block to be run when an exception is
